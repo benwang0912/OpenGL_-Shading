@@ -10,10 +10,14 @@ uniform mat4 vp;
 // 'out' means vertex shader output for fragment shader
 // fNormal will be interpolated before passing to fragment shader
 out vec3 fNormal;
-// glProvokingVertex
+out vec2 fTexcoord;
+out vec3 globalPosition;
+
 void main()
 {
-	fNormal = normal;
+	fNormal = mat3(model)*normal;	//normal after rotate, transform.....
+	fTexcoord = texcoord;	
+	globalPosition = vec3(model*vec4(position,1.0f));	//frag position after rotate, transform.....
 	gl_Position=vp*model*vec4(position, 1.0);
 }
 

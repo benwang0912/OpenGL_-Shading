@@ -1,0 +1,47 @@
+#version 330	//version declaration
+
+layout(location=0) in vec3 Position;
+layout(location=1) in vec2 texcoord;
+layout(location=2) in vec3 Normal;
+
+uniform mat4 model;
+uniform mat4 vp;
+uniform sampler2D uSampler;
+uniform vec3 viewPos;
+
+const vec3 lightPosition = vec3(10,15,-5);
+const float ambientStrength = 0.1f;
+const float specularStrength = 10.0f;
+// fNormal will be interpolated before passing to fragment shader
+
+out vec4 color;
+void main()
+{
+	vec3 position = vec3(model*vec4(Position,1.0f));		//frag position after rotate, transform.....
+	vec3 normal = normalize(mat3(transpose(inverse(model))) * Normal);  //normal after rotate, transform.....
+
+	vec3 lightDir = normalize(lightPosition-position);		//light direction
+	vec3 viewDir = normalize(viewPos - position);			//viewing direction
+	color = texture(uSampler,texcoord);
+	  
+//----------------------------------------------------diffuse---------------------------------------//
+	float diff = max(0.0, dot(normal, lightDir));
+	vec3 diffuse = vec3(diff,diff,diff);
+
+//----------------------------------------------------ambient---------------------------------------//	
+	vec3 ambient = vec3(ambientStrength,ambientStrength,ambientStrength);
+
+//----------------------------------------------------specular---------------------------------------//	
+	vec3 reflectDir = normalize(2*dot(lightDir, normal)*normal - lightDir);		//reflect direction = 2*(lightDir¡Pnormal)*normal - lightDir
+	float spec = 0;
+	if(diff>0)			//if the face has not been hit by light, we don't have to consider specular
+		spec = pow(max(dot(viewDir, reflectDir), 0.0), 128);	//specular = (reflectDir ¡P viewDir)^alpha
+	vec3 specular = vec3(specularStrength*spec,specularStrength*spec, specularStrength * spec) ;
+
+	color = color*vec4((diffuse+ambient+specular),1.0);
+	
+	gl_Position=vp*model*vec4(Position, 1.0);
+}
+
+//the only difference with flat shading is that we remove the flat definition before out vec4 color
+//which means we want to interpolate color before it is passed to fs.

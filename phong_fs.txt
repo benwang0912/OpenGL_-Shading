@@ -1,0 +1,38 @@
+#version 330
+
+// Default color buffer location is 0
+// If you create framebuffer your own, you need to take care of it
+layout(location=0) out vec4 FragColor;
+
+in vec3 fNormal;
+in vec2 fTexcoord;
+in vec3 globalPosition;
+uniform sampler2D uSampler;
+
+const float ambientStrength = 0.1f;
+const float specularStrength = 10.0f;
+const vec3 lightPos = vec3(10,15,5);//light position
+
+uniform vec3 viewPos;
+
+void main()
+{
+	vec3 lightDir = normalize(lightPos - globalPosition);		//light direction
+	vec3 viewDir = normalize(viewPos - globalPosition);			//viewing direction
+//-----------------------------------ambient-------------------------------//	
+	vec3 ambient = vec3(ambientStrength, ambientStrength, ambientStrength);
+//-----------------------------------diffuse-------------------------------//
+	float diff = max(0.0, dot(normalize(fNormal), lightDir));	//diffuse = normal ¡P lightDir
+	vec3 diffuse = vec3(diff,diff,diff);
+//----------------------------------specular-------------------------------//
+	vec3 reflectDir = 2*dot(lightDir,fNormal)*fNormal - lightDir;	//reflect direction = 2*(lightDir¡Pnormal)*normal - lightDir. 
+																	//Or we can use gl build in function reflect(-lightDir, fNormal)
+	float spec = 0.0f;
+	if(diff>0){
+		spec = pow(max(dot(normalize(reflectDir), viewDir),0.0), 128);	//specular = (reflectDir ¡P viewDir)^alpha
+	}
+	vec3 specular = vec3(spec*specularStrength, spec*specularStrength, spec*specularStrength);
+
+	FragColor = texture(uSampler, fTexcoord);
+	FragColor *= vec4((ambient+diffuse+specular),1.0f);
+}

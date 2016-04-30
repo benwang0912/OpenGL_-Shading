@@ -23,7 +23,7 @@ struct object_struct{
 } ;
 
 std::vector<object_struct> objects;//vertex array object,vertex buffer object and texture(color) for objs
-unsigned int program, program2;
+unsigned int program, program1, program2, program3;
 std::vector<int> indicesCount;//Number of indice of objs
 
 static void error_callback(int error, const char* description)
@@ -257,7 +257,7 @@ static void setUniformMat4(unsigned int program, const std::string &name, const 
 static void render()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	for(int i=0;i<objects.size();i++){
+	for (int i = 0; i < objects.size(); i++) {
 		//VAO VBO are binded in add_Object function
 		glUseProgram(objects[i].program);
 		glBindVertexArray(objects[i].vao);
@@ -265,27 +265,47 @@ static void render()
 		//you should send some data to shader here
 		GLint modelLoc = glGetUniformLocation(objects[i].program, "model");
 		glm::mat4 mPosition;
-		
-		//mPosition = glm::translate(mPosition, modelPositions[i]);
-		if (i == 1) {		//for earth
-			float radiusX = 20.0f;
-			float radiusZ = 30.0f;
-			float X = sin(glfwGetTime()) * radiusX;
-			float Z = cos(glfwGetTime()) * radiusZ;
-			mPosition = glm::translate(mPosition, glm::vec3(X, 0, Z));
-			mPosition = glm::rotate(mPosition, (float)glfwGetTime()*5.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-			//mPosition = rotation then translation
+		switch (i) {
+		case 0:	//top left
+			mPosition = glm::translate(mPosition, glm::vec3(0, 10, 10));
+			mPosition = glm::rotate(mPosition, (float)glfwGetTime()*1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+			break;
+		case 1: //top right
+			mPosition = glm::translate(mPosition, glm::vec3(0, 10, -10));
+			mPosition = glm::rotate(mPosition, (float)glfwGetTime()*1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+			break;
+		case 2:	//bottom left
+			mPosition = glm::translate(mPosition, glm::vec3(0,-10, 10));
+			mPosition = glm::rotate(mPosition, (float)glfwGetTime()*1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+			break;
+		case 3://bottom right
+			mPosition = glm::translate(mPosition, glm::vec3(0, -10, -10));
+			mPosition = glm::rotate(mPosition, (float)glfwGetTime()*1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+			break;
 		}
+		//mPosition = glm::translate(mPosition, modelPositions[i]);
+/*		
 		else {				//for sun
 			mPosition = glm::rotate(mPosition, (float)glfwGetTime()*1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-		}
+		}*/
+		//mPosition = glm::rotate(mPosition, (float)glfwGetTime()*1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+
+		//mPosition = glm::scale(glm::mat4(1.0f), glm::vec3(1.5f));
 		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(mPosition));
 		//std::cout << i<< std::endl;
 		glDrawElements(GL_TRIANGLES, indicesCount[i], GL_UNSIGNED_INT, nullptr);
 	}
 	glBindVertexArray(0);
 }
-
+static void set_vp(unsigned int prog) {
+	setUniformMat4(prog, "vp", glm::perspective(glm::radians(45.0f), 640.0f / 480, 1.0f, 100.f) *
+		glm::lookAt(glm::vec3(40.0f), glm::vec3(), glm::vec3(0, 1, 0)) * glm::mat4(1.0f));
+}
+static void set_viewPosition(unsigned int prog) {
+	glUseProgram(prog);
+	GLint loc = glGetUniformLocation(prog, "viewPos");
+	glUniform3f(loc, 40.0f, 0, 0);
+}
 int main(int argc, char *argv[])
 {
 	GLFWwindow* window;
@@ -311,19 +331,23 @@ int main(int argc, char *argv[])
 	// This line MUST put below glfwMakeContextCurrent
 	glewExperimental = GL_TRUE;		//tell glew to use more modern technique for managing OpenGL functionality
 	glewInit();
-
+	
 	// Enable vsync
 	glfwSwapInterval(1);
-
+	glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
 	// Setup input callback
 	glfwSetKeyCallback(window, key_callback);	//set key event handler
 
 	// load shader program
-	program = setup_shader(readfile("vs.txt").c_str(), readfile("fs.txt").c_str());
-	program2 = setup_shader(readfile("vs.txt").c_str(), readfile("fs.txt").c_str());
+	program = setup_shader(readfile("flat_vs.txt").c_str(), readfile("flat_fs.txt").c_str());
+	program1 = setup_shader(readfile("gourand_vs.txt").c_str(), readfile("gourand_fs.txt").c_str());
+	program2 = setup_shader(readfile("phong_vs.txt").c_str(), readfile("phong_fs.txt").c_str());
+	program3 = setup_shader(readfile("blin_vs.txt").c_str(), readfile("blin_fs.txt").c_str());
 
 	int sun = add_obj(program, "sun.obj","sun.bmp");
-	int earth = add_obj(program, "earth.obj","earth.bmp");
+	int sun1 = add_obj(program1, "sun.obj", "sun.bmp");
+	int sun2 = add_obj(program2, "sun.obj", "sun.bmp");
+	int sun3 = add_obj(program3, "sun.obj", "sun.bmp");
 
 	glEnable(GL_DEPTH_TEST);
 	// prevent faces rendering to the front while they're behind other faces. 
@@ -333,19 +357,21 @@ int main(int argc, char *argv[])
 	//glEnable(GL_BLEND);
 	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	 setUniformMat4(program, "vp", glm::perspective(glm::radians(45.0f), 640.0f / 480, 1.0f, 100.f) *
-		 glm::lookAt(glm::vec3(40.0f), glm::vec3(), glm::vec3(0, 1, 0)) * glm::mat4(1.0f));
-	 setUniformMat4(program2, "vp", glm::mat4(1.0));
-
-	//setUniformMat4(program2, "vp", glm::mat4(1.0));
-	glm::mat4 tl=glm::translate(glm::mat4(),glm::vec3(15.0f,0.0f,0.0));
-	//glm::mat4 rot;
-	//glm::mat4 rev;
-
+//-----------------------------------------------------------setting view point----------------------------------//
+	 set_vp(program);
+	 set_vp(program1);
+	 set_vp(program2);
+	 set_vp(program3);
+//-----------------------------------------------------------end of setting--------------------------------------//	 
+//------------------------------------------------------setting viewing position---------------------------------//
+	 set_viewPosition(program);
+	 set_viewPosition(program1);
+	 set_viewPosition(program2);
+	 set_viewPosition(program3);
+//------------------------------------------------------end of setting-------------------------------------------//
 	float last, start;
 	last = start = glfwGetTime();
 	int fps=0;
-	objects[sun].model = glm::scale(glm::mat4(1.0f), glm::vec3(0.85f));
 	while (!glfwWindowShouldClose(window))
 	{//program will keep draw here until you close the window
 		float delta = glfwGetTime() - start;
